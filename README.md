@@ -314,11 +314,34 @@ Otra manera de hacerlo es utilizando directamente en el navegador la IP del serv
 http://192.168.1.15/pgadmin4
 ```
 
-Ambas direcciones nos redirigen a pgAdmin, donde nos **logueamos** utilizando el correo y contraseña que habíamos dicho antes.
+Ambas direcciones nos redirigen a pgAdmin, donde nos **logueamos** utilizando el correo y contraseña que habíamos dicho antes:
 
-Una vez hemos conseguido entrar, **incluiremos / registraremos** nuestro servidor en pgAdmin. Para ello haremos clic derecho en el apartado “Servers”, seleccionamos **Register**, seguidamente **Server** y nos saldrá una ventana como la siguiente, donde le pondremos un **nombre/apodo** al servicio que queremos añadir en el apartado **General**.
+<figure>
+  <img src="./imagenes/Captura de pantalla 2025-11-11 151028.png" width="780">
+</figure>
+
+
+Una vez hemos conseguido entrar, **incluiremos / registraremos** nuestro servidor en pgAdmin. Para ello haremos clic derecho en el apartado “Servers”
+
+<figure>
+  <img src="./imagenes/Captura de pantalla 2025-11-11 151854.png" width="780">
+</figure>
+
+Seleccionamos **Register**, seguidamente **Server** y nos saldrá una ventana como la siguiente, donde le pondremos un **nombre/apodo** al servicio que queremos añadir en el apartado **General**.
+
+<figure>
+  <img src="./imagenes/Captura de pantalla 2025-11-11 152158.png" width="780">
+</figure>
 
 Seguidamente, en el apartado **Connection**, añadiremos la **dirección IP** de nuestro servidor, el **usuario** y la **contraseña** que tenga permisos de administrador en nuestra base de datos `dvdrental`. En este caso, usaremos el usuario `postgres`.
+
+<figure>
+  <img src="./imagenes/Captura de pantalla 2025-11-11 152257.png" width="780">
+</figure>
+
+<figure>
+  <img src="./imagenes/Captura de pantalla 2025-11-11 152404.png" width="780">
+</figure>
 
 El problema que me ha salido significa que PostgreSQL **sí está en funcionamiento y escuchando**, pero **no está permitiendo el acceso** desde la dirección IP `192.168.1.15` según el archivo de control de accesos `pg_hba.conf`. Por lo tanto, debemos añadir en dicho archivo que nos deje acceso:
 
@@ -338,9 +361,24 @@ Reiniciamos el servicio:
 isard@dosorio-server:~$ sudo systemctl restart postgresql
 ```
 
-Y comprobamos que esta vez sí que nos deja conectar: y efectivamente, **así ha sido**.
+Y comprobamos que esta vez sí que nos deja conectar:
 
-Hacemos una **consulta** en la base de datos `dvdrental` para comprobar que pilla bien la base de datos. Con la imagen anterior, podemos comprobar que la **implementación de pgAdmin** ha sido un **éxito**.
+<figure>
+  <img src="./imagenes/Captura de pantalla 2025-11-11 153048.png" width="780">
+</figure>
+
+Y efectivamente, **así ha sido**.
+
+<figure>
+  <img src="./imagenes/Captura de pantalla 2025-11-11 153104.png" width="780">
+</figure>
+
+
+Hacemos una **consulta** en la base de datos `dvdrental` para comprobar que pilla bien la base de datos. Con la imagen siguiente, podemos comprobar que la **implementación de pgAdmin** ha sido un **éxito**.
+
+<figure>
+  <img src="./imagenes/Captura de pantalla 2025-11-11 153343.png" width="780">
+</figure>
 
 ---
 
@@ -376,23 +414,56 @@ alumne@dosoriocliente:~$ sudo apt update
 alumne@dosoriocliente:~$ sudo apt install -y dbeaver-ce
 ```
 
-Una vez instalado DBeaver, queremos hacer una **conexión remota** a PostgreSQL. Para ello, **abriremos la aplicación** de DBeaver en nuestra máquina cliente.
+Una vez instalado DBeaver, queremos hacer una **conexión remota** a PostgreSQL. Para ello, **abriremos la aplicación** de DBeaver en nuestra máquina cliente:
+
+<figure>
+  <img src="./imagenes/Captura de pantalla 2025-11-12 003331.png" width="780">
+</figure>
 
 Una vez dentro, debemos **establecer una nueva conexión** con PostgreSQL. Para ello, simplemente le daremos al **clic derecho** en el panel de la izquierda, seleccionaremos **Create** y **Connection**.
 
+<figure>
+  <img src="./imagenes/Captura de pantalla 2025-11-12 003602.png" width="780">
+</figure>
+
 Seguidamente, se nos abrirá una ventana como la siguiente donde **elegiremos PostgreSQL**.
+
+<figure>
+  <img src="./imagenes/Captura de pantalla 2025-11-12 003756.png" width="780">
+</figure>
 
 Inmediatamente después de elegir PostgreSQL, le daremos a **Next** y nos saldrá una ventana como la siguiente, donde **indicaremos que se conecte vía host**, indicando que el **host** sea la IP de la máquina servidor donde tenemos nuestro PostgreSQL y la base de datos `dvdrental`.
 
+<figure>
+  <img src="./imagenes/Captura de pantalla 2025-11-12 003910.png" width="780">
+</figure>
+
 Le damos a **Finish** y, si todo ha ido bien, nos muestra la **conexión hecha** con nuestra base de datos `dvdrental` en el panel de la izquierda.
+
+<figure>
+  <img src="./imagenes/Captura de pantalla 2025-11-12 004117.png" width="780">
+</figure>
 
 El siguiente paso es comprobar que, efectivamente, no solo haya hecho conexión, sino que **pueda interactuar con los datos** y ver qué tablas y valores hay. Para ello, usaremos **SQL Editor**, que lo tenemos en la parte superior de la app de DBeaver.
 
+<figure>
+  <img src="./imagenes/Captura de pantalla 2025-11-12 004331.png" width="780">
+</figure>
+
 Una vez le hemos dado a **Open SQL script**, DBeaver **descargará automáticamente** el **driver JDBC** de PostgreSQL, ya que es el que usa por defecto.
+
+<figure>
+  <img src="./imagenes/Captura de pantalla 2025-11-12 004416.png" width="780">
+</figure>
 
 Una vez se ha descargado, podemos proceder a **hacer alguna que otra consulta** para ver si se ha implementado correctamente.
 
-En este caso, **todo ha funcionado correctamente**, haciendo que esta implementación **haya sido un éxito**.
+<figure>
+  <img src="./imagenes/Captura de pantalla 2025-11-12 004751.png" width="780">
+</figure>
+
+
+En este caso, **todo ha funcionado correctamente**, haciendo que esta implementación, **¡haya sido un éxito!**
 
 ---
 
@@ -401,7 +472,7 @@ En este caso, **todo ha funcionado correctamente**, haciendo que esta implementa
 **¿Consideras PostgreSQL como un SGBD centralizado o basado en el sistema cliente/servidor? Argumenta tu respuesta.**
 
 
-Una vez terminada la práctica y como ya hemos tratado en clase, digo que es un sistema **cliente-servidor**. Esto se debe a que el **servidor** es quien gestiona las bases de datos, y los **clientes**, como `psql`, **pgAdmin** o **DBeaver**, se conectan a él desde otra máquina cliente mediante la red. Durante la práctica, hemos visto que el servidor se **instala y ejecuta** en una máquina, mientras que desde el cliente **podemos conectarnos de forma remota** y hacer consultas.
+Una vez terminada la práctica y como ya hemos tratado en clase, digo que es un sistema **cliente-servidor**. Esto se debe a que el **servidor** es quien gestiona las bases de datos, y los **clientes**, como **psql**, **pgAdmin** o **DBeaver**, se conectan a él desde otra máquina cliente mediante la red. Durante la práctica, hemos visto que el servidor se **instala y ejecuta** en una máquina, mientras que desde el cliente **podemos conectarnos de forma remota** y hacer consultas.
 
 **Si has clasificado PostgreSQL como un sistema cliente/servidor, dentro de qué sistema de capas consideras que encaja mejor: ¿2 capas o 3 capas? Argumenta tu respuesta.**
 
