@@ -478,3 +478,25 @@ Una vez terminada la práctica y como ya hemos tratado en clase, digo que es un 
 
 
 Como hemos visto en clase, **PostgreSQL** funciona con una **arquitectura de tres capas**. Existe una parte que usa el **usuario (cliente)**, otra que se encarga de **comunicar y gestionar las peticiones**, y una última donde **se guardan los datos**, que vendría siendo el servidor. Así, todo el sistema **trabaja de forma ordenada y separada**.
+
+---
+
+## Webs de consulta y guía
+
+https://www.postgresql.org/download/linux/ubuntu/
+
+
+https://www.youtube.com/watch?v=thMUhy8lhuw
+
+
+https://neon.com/postgresql/postgresql-getting-started/load-postgresql-sample-database
+
+
+https://www.pgadmin.org/download/pgadmin-4-apt/
+
+
+https://www.digitalocean.com/community/tutorials/how-to-install-and-use-postgresql-on-ubuntu-20-04
+
+
+https://www.youtube.com/watch?v=DxQ_WKBukqY
+https://dbeaver.io/download/
