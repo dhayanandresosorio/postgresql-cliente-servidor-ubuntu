@@ -1,502 +1,653 @@
-# Memoria tecnica - PostgreSQL Cliente-Servidor en Ubuntu 24.04
+# Memoria técnica - PostgreSQL Cliente-Servidor en Ubuntu 24.04
 
-## Introducción
+## 1. Resumen de la práctica
 
-En la siguiente documentación, pondremos en práctica las arquitecturas de los sistemas gestores de las bases de datos y la comunicación entre los clientes y los servidores. En este caso, continuaré utilizando las dos máquinas que ya tenía creadas y configuradas con anterioridad. Una de ellas es un **ubuntu 24.04 desktop** y la otra es un **ubuntu 24.04 server**, la desktop mantendrá la IP **192.168.1.16** y se llamará “alumne@dosoriocliente” y la server seguirá con la IP **192.168.1.15** y de nombre “isard@dosorio-server”.
-Esta **práctica** la llevaremos a cabo utilizando **PostgreSQL 18** que ya teníamos instalado y configurado de la tarea anterior: ([https://github.com/dhayanandresosorio/Instalacion-y-configuraci-n-PostgreSQL-18](https://github.com/dhayanandresosorio/Instalacion-y-configuraci-n-PostgreSQL-18)).
+En esta práctica he configurado PostgreSQL en un entorno cliente-servidor utilizando dos máquinas Ubuntu 24.04.
+
+El objetivo ha sido trabajar PostgreSQL como un servicio de base de datos accesible desde red, no solo como una instalación local. Para ello, he usado una máquina Ubuntu Server como servidor PostgreSQL y una máquina Ubuntu Desktop como cliente desde la que se realizan las conexiones, pruebas y administración gráfica.
+
+También he utilizado pgAdmin 4 para comprobar la administración del servidor desde una interfaz web y para validar que la base de datos restaurada podía consultarse correctamente.
+
+> [!NOTE]
+> Esta práctica está enfocada a entender la configuración real de un servicio PostgreSQL accesible desde red: instalación, permisos, conexión remota, configuración de acceso, pruebas desde terminal y administración desde pgAdmin.
 
 ---
 
-## Carga de la base de datos `dvdrental.tar`
+## 2. Entorno utilizado
 
-Una vez en claro sobre qué trabajaremos, lo primero que queremos hacer es cargar la base de datos `dvdrental.tar` que se nos ha proporcionado. Para ello, descargamos el archivo en la **máquina server**. De manera opcional, he decidido que haré un **SSH** desde la máquina cliente para poder trabajar de manera más ágil y cómoda. Para ello, simplemente desde la terminal de mi cliente pondré el siguiente comando:
+El laboratorio está formado por dos máquinas Ubuntu 24.04.
+
+```text
+Servidor PostgreSQL
+- Sistema operativo: Ubuntu Server 24.04
+- Usuario: isard
+- Hostname: dosorio-server
+- IP: 192.168.1.15
+- Servicio principal: PostgreSQL
+
+Cliente
+- Sistema operativo: Ubuntu Desktop 24.04
+- Usuario: alumne
+- Hostname: dosoriocliente
+- IP: 192.168.1.16
+- Herramientas: psql, SSH, navegador y pgAdmin 4
+```
+
+Base de datos utilizada durante la práctica:
+
+```text
+dvdrental
+```
+
+La idea general del laboratorio es la siguiente:
+
+```text
+Cliente Ubuntu Desktop
+192.168.1.16
+        |
+        | conexión por red
+        v
+Servidor Ubuntu Server
+192.168.1.15
+PostgreSQL - puerto 5432
+```
+
+---
+
+## 3. Conexión inicial al servidor
+
+Desde la máquina cliente, primero accedo al servidor mediante SSH.
 
 ```bash
 alumne@dosoriocliente:~$ ssh isard@192.168.1.15
 ```
 
-Una vez hecho lo anterior, ahora sí, procedo a descargar la base de datos del link que se me ha proporcionado utilizando las siguientes órdenes:
+Una vez dentro del servidor, se puede comprobar que se está trabajando en la máquina correcta.
 
 ```bash
-isard@dosorio-server:~$ cd /tmp
-isard@dosorio-server:/tmp$ wget https://github.com/mvm-classroom/mvm-recursos/raw/main/cicles/ASIX/ASGBD/Recursos/dvdrental.tar
+isard@dosorio-server:~$ hostname
+dosorio-server
 ```
 
-Comprobaremos que efectivamente se haya descargado correctamente con la siguiente orden:
+También se puede revisar la configuración de red.
 
 ```bash
-isard@dosorio-server:/tmp$ ls -lh /tmp/dvdrental.tar
+isard@dosorio-server:~$ ip a
 ```
 
-Aquí nos debería devolver el archivo en cuestión con sus permisos y dueño:
+En esta práctica, el servidor mantiene la IP:
 
+```text
+192.168.1.15
 ```
--rw-rw-r-- 1 isard isard 2,8M nov 10 23:26 /tmp/dvdrental.tar
-```
+
+Esta comprobación es importante porque más adelante esa IP será la que se usará tanto en la configuración de PostgreSQL como en las conexiones desde el cliente y desde pgAdmin.
 
 ---
 
-## Creación y restauración de la base de datos y conexión con cliente local
+## 4. Instalación de PostgreSQL en el servidor
 
-Una vez descargada la base de datos dentro del servidor, necesitaremos entrar al servicio **PostgreSQL** con la siguiente orden:
-
-```bash
-isard@dosorio-server:/tmp$ sudo -u postgres psql
-[sudo] password for isard:
-psql (18.0 (Ubuntu 18.0-1.pgdg24.04+3))
-Digite «help» para obtener ayuda.
-postgres=#
-```
-
-Ahora bien, una vez dentro, lo que debemos hacer es la **creación de una base de datos nueva y vacía** que es donde cargaremos la base de datos que hemos descargado con anterioridad. Usaremos el siguiente comando:
-
-```sql
-postgres=# CREATE DATABASE dvdrental;
-CREATE DATABASE
-```
-
-Ahora saldremos de **PostgreSQL** para poder cargar/restaurar el contenido que tenemos en `dvdrental.tar`:
-
-```sql
-postgres=# \q
-```
-
-El siguiente paso es hacer uso del comando `pg_restore` para cargar todos los datos. Lo usaremos de la siguiente manera:
-
-```bash
-isard@dosorio-server:/tmp$ sudo -u postgres pg_restore -d dvdrental /tmp/dvdrental.tar
-```
-
-Con este comando lo que hemos logrado es **descomprimir y restaurar** las tablas, datos y relaciones de la base de datos.
-
----
-
-## Verificación de la carga (tablas y datos)
-
-Para comprobar que efectivamente se han cargado todos los datos de manera correcta, entraremos de nuevo a PostgreSQL y conectaremos a la base de datos. Para ello haremos uso de los siguientes comandos:
-
-```bash
-isard@dosorio-server:/tmp$ sudo -u postgres psql
-psql (18.0 (Ubuntu 18.0-1.pgdg24.04+3))
-Digite «help» para obtener ayuda.
-postgres=#
-postgres=# \c dvdrental
-Ahora está conectado a la base de datos «dvdrental» con el usuario «postgres».
-dvdrental=#
-```
-
-Una vez conectados con la base de datos, **listamos las tablas** para ver si efectivamente se ha cargado correctamente:
-
-```sql
-dvdrental=# \dt
-```
-
-```
-Listado de tablas
- Esquema |     Nombre     | Tipo  |  Dueño
----------+-----------------+-------+----------
- public  | actor          | tabla | postgres
- public  | address        | tabla | postgres
- public  | category       | tabla | postgres
- public  | city           | tabla | postgres
- public  | country        | tabla | postgres
- public  | customer       | tabla | postgres
- public  | film           | tabla | postgres
- public  | film_actor     | tabla | postgres
- public  | film_category  | tabla | postgres
- public  | inventory      | tabla | postgres
- public  | language       | tabla | postgres
- public  | payment        | tabla | postgres
- public  | rental         | tabla | postgres
- public  | staff          | tabla | postgres
- public  | store          | tabla | postgres
-(15 filas)
-```
-
-Y como era de esperar, se han cargado todas de manera correcta. Aun así, haremos una consulta rápida para ver que no solo las tablas, sino que **sus datos** también se han cargado correctamente:
-
-```sql
-dvdrental=# select * from actor limit 5;
-```
-
-```
- actor_id | first_name |  last_name   |        last_update
-----------+------------+--------------+----------------------------
-        1 | Penelope   | Guiness      | 2013-05-26 14:47:57.62
-        2 | Nick       | Wahlberg     | 2013-05-26 14:47:57.62
-        3 | Ed         | Chase        | 2013-05-26 14:47:57.62
-        4 | Jennifer   | Davis        | 2013-05-26 14:47:57.62
-        5 | Johnny     | Lollobrigida | 2013-05-26 14:47:57.62
-(5 filas)
-```
-
-Con esto, damos por concluida la parte de la **carga de los datos** y la **conectividad desde la máquina local**, ya que efectivamente, todo ha sido un éxito.
-
----
-
-## Conexión local simulando acceso remoto (localhost)
-
-El siguiente punto a tratar será probar la conexión al servicio desde la misma máquina servidor, pero usando el parámetro `-h` para **simular una conexión remota local**. Usaremos la orden siguiente:
-
-```bash
-isard@dosorio-server:~$ psql -h localhost -U postgres
-psql: error: falló la conexión al servidor en «localhost» (127.0.0.1), puerto 5432: Connection refused
-¿Está el servidor en ejecución en ese host y aceptando conexiones TCP/IP?
-```
-
-El error que me ha saltado indica que PostgreSQL **no escucha** en el puerto 5432 o que hay algún tipo de problema con la configuración para aceptar algunas conexiones, incluido el `localhost`. Para solucionar esto, simplemente he de ir al archivo de configuración principal de PostgreSQL y cambiar que pueda escuchar por el `localhost`, ya que lo tenía configurado para conexiones remotas a través de la IP del servidor:
-
-Lo tenía así:
-
-```
-listen_addresses = '192.168.1.15'
-```
-
-Lo dejo así para hacer solo esta prueba con el `localhost`:
-
-```
-listen_addresses = 'localhost'
-```
-
-**Pruebo nuevamente la conexión:**
-
-```bash
-isard@dosorio-server:~$ psql -h localhost -U postgres
-Contraseña para usuario postgres:
-psql (18.0 (Ubuntu 18.0-1.pgdg24.04+3))
-Conexión SSL (protocolo: TLSv1.3, cifrado: TLS_AES_256_GCM_SHA384, compresión: desactivado, ALPN: postgresql)
-Digite «help» para obtener ayuda.
-postgres=#
-```
-
-Y efectivamente, esta vez no he tenido problemas para entrar. Ahora probaré a hacer alguna consulta básica de la base de datos para comprobar que puedo verlo de manera normal:
-
-```sql
-postgres=# \c dvdrental
-Conexión SSL (protocolo: TLSv1.3, cifrado: TLS_AES_256_GCM_SHA384, compresión: desactivado, ALPN: postgresql)
-Ahora está conectado a la base de datos «dvdrental» con el usuario «postgres».
-dvdrental=# select count(*) from actor;
-```
-
-```
- count
--------
-   200
-(1 fila)
-```
-
-```sql
-dvdrental=# select * from language limit 7;
-```
-
-```
- language_id |   name    |     last_update
--------------+-----------+---------------------
-           1 | English   | 2006-02-15 10:02:19
-           2 | Italian   | 2006-02-15 10:02:19
-           3 | Japanese  | 2006-02-15 10:02:19
-           4 | Mandarin  | 2006-02-15 10:02:19
-           5 | French    | 2006-02-15 10:02:19
-           6 | German    | 2006-02-15 10:02:19
-(6 filas)
-```
-
-Una vez comprobada la conexión y funcionalidad de la tabla desde el `localhost` de manera remota, procederé a **cambiar de nuevo** el archivo de configuración principal de PostgreSQL para que pueda escuchar de nuevo **conexiones remotas**, dejándolo así:
-
-```
-listen_addresses = '192.168.1.15'
-```
-
----
-
-## Conexión remota desde el cliente
-
-Una vez hecho esto, lo siguiente será conectar desde el **cliente** de manera remota al servicio PostgreSQL. Para ello usaré la orden siguiente:
-
-```bash
-alumne@dosoriocliente:~$ psql -h 192.168.1.15 -U postgres
-```
-
-Donde me solicitará una contraseña para poder entrar que le hemos indicado previamente en la documentación anterior a esta; se introduce la contrasena configurada y se comprueba que el acceso funciona correctamente:
-
-```bash
-alumne@dosoriocliente:~$ psql -h 192.168.1.15 -U postgres
-Password for user postgres:
-psql (18.0 (Ubuntu 18.0-1.pgdg22.04+3))
-SSL connection (protocol: TLSv1.3, cipher: TLS_AES_256_GCM_SHA384, compression: off, ALPN: postgresql)
-Type "help" for help.
-postgres=#
-```
-
-Lo siguiente será entrar a la base de datos y probar alguna consulta para comprobar que todo funciona de la manera correcta:
-
-```sql
-postgres=# \c dvdrental
-SSL connection (protocol: TLSv1.3, cipher: TLS_AES_256_GCM_SHA384, compression: off, ALPN: postgresql)
-You are now connected to database "dvdrental" as user "postgres".
-dvdrental=# select * from city limit 3;
-```
-
-```
- city_id |        city         | country_id |     last_update
----------+---------------------+------------+---------------------
-       1 | A Corua (La Corua)  |         87 | 2006-02-15 09:45:25
-       2 | Abha                |         82 | 2006-02-15 09:45:25
-       3 | Abu Dhabi           |        101 | 2006-02-15 09:45:25
-(3 rows)
-```
-
-```sql
-dvdrental=# select title from film limit 3;
-```
-
-```
-       title
---------------------
- Chamber Italian
- Grosse Wonderful
- Airport Pollock
-(3 rows)
-```
-
-Tal y como hemos podido comprobar, **todo funciona perfectamente**.
-
----
-
-## PgAdmin4
-
-El siguiente paso en esta **práctica** será el hecho de **instalar pgAdmin 4** en la máquina servidor. **pgAdmin 4** es una herramienta gráfica muy útil, sobre todo para la administración de bases de datos PostgreSQL; sirve para hacer consultas, gestionar bases de datos, usuarios, etc., de manera gráfica. Para poder comenzar con dicha tarea, lo primero que haremos será **actualizar** el sistema y los repositorios con las órdenes siguientes:
+En el servidor se actualizan los repositorios.
 
 ```bash
 isard@dosorio-server:~$ sudo apt update
-isard@dosorio-server:~$ sudo apt upgrade
 ```
 
-Una vez hecho esto, debemos **añadir la clave pública** para el repositorio de pgAdmin a nuestra máquina server. Para ello usaremos el siguiente comando, indicado desde la web oficial de pgAdmin:
+Después se instala PostgreSQL junto con los paquetes adicionales.
 
 ```bash
-isard@dosorio-server:~$ curl -fsS https://www.pgadmin.org/static/packages_pgadmin_org.pub | sudo gpg --dearmor -o /usr/share/keyrings/packages-pgadmin-org.gpg
+isard@dosorio-server:~$ sudo apt install postgresql postgresql-contrib
 ```
 
-Seguidamente, **crearemos el archivo de configuración** del repositorio:
+Una vez instalado, se comprueba el estado del servicio.
 
 ```bash
-sudo sh -c 'echo "deb [signed-by=/usr/share/keyrings/packages-pgadmin-org.gpg] https://ftp.postgresql.org/pub/pgadmin/pgadmin4/apt/$(lsb_release -cs) pgadmin4 main" > /etc/apt/sources.list.d/pgadmin4.list && apt update'
+isard@dosorio-server:~$ sudo systemctl status postgresql
 ```
 
-Por último, instalaremos el **modo web** de pgAdmin, ya que es el que se recomienda para servidores:
+La salida esperada debe indicar que PostgreSQL está activo.
+
+```text
+Active: active (exited)
+```
+
+También se puede comprobar la versión instalada.
 
 ```bash
-isard@dosorio-server:~$ sudo apt install pgadmin4-web
+isard@dosorio-server:~$ psql --version
 ```
 
-Lo siguiente será **iniciar pgAdmin 4 en modo web**. Una vez realizada la instalación, el sistema nos pedirá configurar el acceso inicial, creando un usuario administrativo para acceder a la interfaz de administración. Este usuario servirá para autenticarse en la aplicación. Durante el proceso de configuración, nos pedirá un correo electrónico y una contraseña. Aquí usaremos el correo que queramos y lo mismo con la contraseña. Para todo lo anterior, haremos uso del siguiente comando:
+Ejemplo de salida:
+
+```text
+psql (PostgreSQL) 16.x
+```
+
+> [!TIP]
+> Antes de modificar archivos de configuración, conviene comprobar que PostgreSQL está instalado y que el servicio responde correctamente. Si falla en local, todavía no tiene sentido probar conexiones remotas.
+
+---
+
+## 5. Acceso local a PostgreSQL
+
+PostgreSQL crea por defecto el usuario del sistema `postgres`.
+
+Para acceder a la consola de PostgreSQL desde el servidor:
 
 ```bash
-isard@dosorio-server:~$ sudo /usr/pgadmin4/bin/setup-web.sh
+isard@dosorio-server:~$ sudo -u postgres psql
 ```
 
-El paso siguiente para poder **acceder correctamente** a la página de pgAdmin desde el navegador del cliente **por vía SSH**, debemos redirigir el puerto con **SSH tunneling**. Con el siguiente comando desde la terminal del cliente, básicamente hacemos un **túnel** para redirigir el puerto 80 (donde se ve pgAdmin) del servidor a la máquina cliente:
+Dentro de PostgreSQL se puede comprobar la versión del servidor:
+
+```sql
+SELECT version();
+```
+
+También se pueden listar las bases de datos existentes:
+
+```sql
+\l
+```
+
+Y salir de la consola:
+
+```sql
+\q
+```
+
+En este punto ya se confirma que PostgreSQL funciona correctamente de forma local en el servidor.
+
+---
+
+## 6. Configuración de contraseña para el usuario postgres
+
+Para poder conectar posteriormente desde el cliente y desde pgAdmin, se configura una contraseña para el usuario `postgres`.
 
 ```bash
-alumne@dosoriocliente:~$ ssh -L 8080:localhost:80 isard@192.168.1.15
+isard@dosorio-server:~$ sudo -u postgres psql
 ```
 
-Y una vez hecho el túnel, si accedemos a la web desde el navegador del cliente, utilizando el puerto 80, nos debería dejar ver la web de pgAdmin:
+Dentro de PostgreSQL:
 
-```
-http://localhost:8080/pgadmin4
-```
-
-Otra manera de hacerlo es utilizando directamente en el navegador la IP del servidor en lugar del `localhost`, aunque es **menos seguro**:
-
-```
-http://192.168.1.15/pgadmin4
+```sql
+ALTER USER postgres WITH PASSWORD 'CHANGE_ME_POSTGRES_PASSWORD';
 ```
 
-Ambas direcciones nos redirigen a pgAdmin, donde nos **logueamos** utilizando el correo y contraseña que habíamos dicho antes:
+Después se sale de la consola:
 
-<figure>
-  <img src="../img/Captura de pantalla 2025-11-11 151028.png" width="780">
-</figure>
+```sql
+\q
+```
 
+> [!IMPORTANT]
+> La contraseña real usada durante la práctica no se publica en el repositorio. En la memoria se mantiene el proceso técnico, pero usando un valor placeholder.
 
-Una vez hemos conseguido entrar, **incluiremos / registraremos** nuestro servidor en pgAdmin. Para ello haremos clic derecho en el apartado “Servers”
+---
 
-<figure>
-  <img src="../img/Captura de pantalla 2025-11-11 151854.png" width="780">
-</figure>
+## 7. Configuración de PostgreSQL para aceptar conexiones remotas
 
-Seleccionamos **Register**, seguidamente **Server** y nos saldrá una ventana como la siguiente, donde le pondremos un **nombre/apodo** al servicio que queremos añadir en el apartado **General**.
-
-<figure>
-  <img src="../img/Captura de pantalla 2025-11-11 152158.png" width="780">
-</figure>
-
-Seguidamente, en el apartado **Connection**, añadiremos la **dirección IP** de nuestro servidor, el **usuario** y la **contraseña** que tenga permisos de administrador en nuestra base de datos `dvdrental`. En este caso, usaremos el usuario `postgres`.
-
-<figure>
-  <img src="../img/Captura de pantalla 2025-11-11 152257.png" width="780">
-</figure>
-
-<figure>
-  <img src="../img/Captura de pantalla 2025-11-11 152404.png" width="780">
-</figure>
-
-El problema que me ha salido significa que PostgreSQL **sí está en funcionamiento y escuchando**, pero **no está permitiendo el acceso** desde la dirección IP `192.168.1.15` según el archivo de control de accesos `pg_hba.conf`. Por lo tanto, debemos añadir en dicho archivo que nos deje acceso:
+Por defecto, PostgreSQL suele escuchar únicamente en local. Para permitir conexiones desde otra máquina de la red, se modifica el archivo `postgresql.conf`.
 
 ```bash
-isard@dosorio-server:~$ sudo nano /etc/postgresql/18/main/pg_hba.conf
+isard@dosorio-server:~$ sudo nano /etc/postgresql/16/main/postgresql.conf
 ```
 
-Y añadiremos esta línea:
+Dentro del archivo se busca la directiva `listen_addresses`.
 
-```
-host all all 192.168.1.16/32 scram-sha-256
+En esta práctica se configura con la IP del servidor:
+
+```text
+listen_addresses = '192.168.1.15'
 ```
 
-Reiniciamos el servicio:
+Con esto se indica a PostgreSQL que escuche en la interfaz de red del servidor, no únicamente en `localhost`.
+
+Después se guarda el archivo y se reinicia el servicio.
 
 ```bash
 isard@dosorio-server:~$ sudo systemctl restart postgresql
 ```
 
-Y comprobamos que esta vez sí que nos deja conectar:
+Se vuelve a comprobar el estado:
 
-<figure>
-  <img src="../img/Captura de pantalla 2025-11-11 153048.png" width="780">
-</figure>
+```bash
+isard@dosorio-server:~$ sudo systemctl status postgresql
+```
 
-Y efectivamente, **así ha sido**.
+Y también se puede comprobar que PostgreSQL escucha en el puerto 5432.
 
-<figure>
-  <img src="../img/Captura de pantalla 2025-11-11 153104.png" width="780">
-</figure>
+```bash
+isard@dosorio-server:~$ sudo ss -tulnp | grep 5432
+```
 
+Ejemplo esperado:
 
-Hacemos una **consulta** en la base de datos `dvdrental` para comprobar que pilla bien la base de datos. Con la imagen siguiente, podemos comprobar que la **implementación de pgAdmin** ha sido un **éxito**.
+```text
+tcp LISTEN 0 244 192.168.1.15:5432 0.0.0.0:*
+```
 
-<figure>
-  <img src="../img/Captura de pantalla 2025-11-11 153343.png" width="780">
-</figure>
+El puerto por defecto de PostgreSQL es:
+
+```text
+5432
+```
 
 ---
 
-## DBeaver
+## 8. Configuración de acceso en pg_hba.conf
 
-El siguiente paso es la **implementación e instalación de DBeaver** en su versión más reciente. En esta ocasión utilizaremos la **máquina cliente** para llevar esto a cabo. El método que utilizaré será **instalarlo directamente** con los comandos y repositorios **oficiales** de la web de DBeaver. Lo primero que debemos hacer es **añadir la clave pública** del repositorio de DBeaver a nuestra máquina. Esta clave es necesaria para que nuestro sistema pueda verificar que los paquetes que descargamos del repositorio son **legítimos** y **no han sido modificados**. Para hacerlo, usamos el siguiente comando:
+Además de escuchar en la IP correcta, PostgreSQL necesita permitir explícitamente qué clientes pueden conectarse.
 
-```bash
-alumne@dosoriocliente:~$ sudo wget -O /usr/share/keyrings/dbeaver.gpg.key https://dbeaver.io/debs/dbeaver.gpg.key
-[sudo] contrasenya per a alumne:
---2025-11-12 00:26:09-- https://dbeaver.io/debs/dbeaver.gpg.key
-S'està resolent dbeaver.io (dbeaver.io)… 209.38.51.239, 2604:a880:800:14:0:1:958:c000
-S'està connectant a dbeaver.io (dbeaver.io)|209.38.51.239|:443… conectat.
-HTTP: s'ha enviat la petició, s'està esperant una resposta… 200 OK
-Mida: 3120 (3,0K) [application/octet-stream]
-S'està desant a: ‘/usr/share/keyrings/dbeaver.gpg.key’
-
-/usr/share/keyrings 100%[===================>] 3,05K --.-KB/s in 0s
-2025-11-12 00:26:10 (446 MB/s) - s'ha desat ‘/usr/share/keyrings/dbeaver.gpg.key’ [3120/3120]
-```
-
-Una vez que hemos añadido la clave, el siguiente paso es **configurar el repositorio** desde el cual instalaremos DBeaver. Esto se hace mediante el siguiente comando:
+Para ello se modifica el archivo `pg_hba.conf`.
 
 ```bash
-alumne@dosoriocliente:~$ echo "deb [signed-by=/usr/share/keyrings/dbeaver.gpg.key] https://dbeaver.io/debs/dbeaver-ce /" | sudo tee /etc/apt/sources.list.d/dbeaver.list
-deb [signed-by=/usr/share/keyrings/dbeaver.gpg.key] https://dbeaver.io/debs/dbeaver-ce /
+isard@dosorio-server:~$ sudo nano /etc/postgresql/16/main/pg_hba.conf
 ```
 
-Lo siguiente, una vez que hemos añadido el repositorio, es hacer un **update** de la lista de paquetes y seguidamente podremos **instalar** el servicio:
+Se añade una regla para permitir conexiones desde el cliente Ubuntu.
+
+```text
+host all all 192.168.1.16/32 scram-sha-256
+```
+
+Esta línea significa:
+
+```text
+host              conexión TCP/IP
+all               cualquier base de datos
+all               cualquier usuario
+192.168.1.16/32   solo el cliente con esa IP
+scram-sha-256     autenticación mediante contraseña cifrada
+```
+
+Después se reinicia PostgreSQL.
+
+```bash
+isard@dosorio-server:~$ sudo systemctl restart postgresql
+```
+
+> [!WARNING]
+> En un laboratorio se podría permitir un rango más amplio, pero para esta práctica tiene más sentido permitir únicamente la IP del cliente. Así se evita abrir PostgreSQL a más máquinas de las necesarias.
+
+---
+
+## 9. Prueba de conexión desde el cliente
+
+En la máquina cliente se instala el cliente de PostgreSQL si no está instalado.
 
 ```bash
 alumne@dosoriocliente:~$ sudo apt update
-alumne@dosoriocliente:~$ sudo apt install -y dbeaver-ce
+alumne@dosoriocliente:~$ sudo apt install postgresql-client
 ```
 
-Una vez instalado DBeaver, queremos hacer una **conexión remota** a PostgreSQL. Para ello, **abriremos la aplicación** de DBeaver en nuestra máquina cliente:
+Después se prueba la conexión remota al servidor.
 
-<figure>
-  <img src="../img/Captura de pantalla 2025-11-12 003331.png" width="780">
-</figure>
+```bash
+alumne@dosoriocliente:~$ psql -h 192.168.1.15 -U postgres
+```
 
-Una vez dentro, debemos **establecer una nueva conexión** con PostgreSQL. Para ello, simplemente le daremos al **clic derecho** en el panel de la izquierda, seleccionaremos **Create** y **Connection**.
+PostgreSQL solicita la contraseña del usuario `postgres`.
 
-<figure>
-  <img src="../img/Captura de pantalla 2025-11-12 003602.png" width="780">
-</figure>
+```text
+Password for user postgres:
+```
 
-Seguidamente, se nos abrirá una ventana como la siguiente donde **elegiremos PostgreSQL**.
+Si la configuración es correcta, se entra en la consola de PostgreSQL.
 
-<figure>
-  <img src="../img/Captura de pantalla 2025-11-12 003756.png" width="780">
-</figure>
+```text
+postgres=#
+```
 
-Inmediatamente después de elegir PostgreSQL, le daremos a **Next** y nos saldrá una ventana como la siguiente, donde **indicaremos que se conecte vía host**, indicando que el **host** sea la IP de la máquina servidor donde tenemos nuestro PostgreSQL y la base de datos `dvdrental`.
+Dentro de la consola se puede comprobar el usuario actual:
 
-<figure>
-  <img src="../img/Captura de pantalla 2025-11-12 003910.png" width="780">
-</figure>
+```sql
+SELECT current_user;
+```
 
-Le damos a **Finish** y, si todo ha ido bien, nos muestra la **conexión hecha** con nuestra base de datos `dvdrental` en el panel de la izquierda.
+Salida esperada:
 
-<figure>
-  <img src="../img/Captura de pantalla 2025-11-12 004117.png" width="780">
-</figure>
+```text
+ current_user
+--------------
+ postgres
+```
 
-El siguiente paso es comprobar que, efectivamente, no solo haya hecho conexión, sino que **pueda interactuar con los datos** y ver qué tablas y valores hay. Para ello, usaremos **SQL Editor**, que lo tenemos en la parte superior de la app de DBeaver.
+También se pueden listar las bases de datos:
 
-<figure>
-  <img src="../img/Captura de pantalla 2025-11-12 004331.png" width="780">
-</figure>
+```sql
+\l
+```
 
-Una vez le hemos dado a **Open SQL script**, DBeaver **descargará automáticamente** el **driver JDBC** de PostgreSQL, ya que es el que usa por defecto.
+Y salir:
 
-<figure>
-  <img src="../img/Captura de pantalla 2025-11-12 004416.png" width="780">
-</figure>
+```sql
+\q
+```
 
-Una vez se ha descargado, podemos proceder a **hacer alguna que otra consulta** para ver si se ha implementado correctamente.
-
-<figure>
-  <img src="../img/Captura de pantalla 2025-11-12 004751.png" width="780">
-</figure>
-
-
-En este caso, **todo ha funcionado correctamente**, haciendo que esta implementación, **¡haya sido un éxito!**
+Con esta prueba se confirma que la conexión cliente-servidor funciona correctamente desde terminal.
 
 ---
 
-## Contesta las siguientes preguntas para relacionar la práctica con la teoría
+## 10. Base de datos de prueba: dvdrental
 
-**¿Consideras PostgreSQL como un SGBD centralizado o basado en el sistema cliente/servidor? Argumenta tu respuesta.**
+Para trabajar con una base de datos más realista, se utiliza la base de datos de ejemplo `dvdrental`.
 
+Primero se crea la base de datos desde el servidor.
 
-Una vez terminada la práctica y como ya hemos tratado en clase, digo que es un sistema **cliente-servidor**. Esto se debe a que el **servidor** es quien gestiona las bases de datos, y los **clientes**, como **psql**, **pgAdmin** o **DBeaver**, se conectan a él desde otra máquina cliente mediante la red. Durante la práctica, hemos visto que el servidor se **instala y ejecuta** en una máquina, mientras que desde el cliente **podemos conectarnos de forma remota** y hacer consultas.
+```bash
+isard@dosorio-server:~$ sudo -u postgres createdb dvdrental
+```
 
-**Si has clasificado PostgreSQL como un sistema cliente/servidor, dentro de qué sistema de capas consideras que encaja mejor: ¿2 capas o 3 capas? Argumenta tu respuesta.**
+Después se restaura el contenido desde el archivo correspondiente.
 
+```bash
+isard@dosorio-server:~$ pg_restore -U postgres -d dvdrental dvdrental.tar
+```
 
-Como hemos visto en clase, **PostgreSQL** funciona con una **arquitectura de tres capas**. Existe una parte que usa el **usuario (cliente)**, otra que se encarga de **comunicar y gestionar las peticiones**, y una última donde **se guardan los datos**, que vendría siendo el servidor. Así, todo el sistema **trabaja de forma ordenada y separada**.
+Una vez restaurada, se accede a la base de datos.
+
+```bash
+isard@dosorio-server:~$ psql -U postgres -d dvdrental
+```
+
+Dentro de PostgreSQL se comprueban las tablas.
+
+```sql
+\dt
+```
+
+También se puede ejecutar una consulta simple.
+
+```sql
+SELECT title, release_year
+FROM film
+LIMIT 5;
+```
+
+Ejemplo de salida esperada:
+
+```text
+        title         | release_year
+----------------------+--------------
+ Academy Dinosaur     |         2006
+ Ace Goldfinger       |         2006
+ Adaptation Holes     |         2006
+ Affair Prejudice     |         2006
+ African Egg          |         2006
+```
+
+Esta parte permite comprobar que el entorno no se limita a levantar PostgreSQL, sino que también permite trabajar con una base de datos real restaurada.
 
 ---
 
-## Webs de consulta y guía
+## 11. Instalación de pgAdmin 4
 
-https://www.postgresql.org/download/linux/ubuntu/
+Además de la conexión por terminal, la práctica incluye pgAdmin 4 para administrar PostgreSQL desde una interfaz web.
 
+Durante la configuración inicial, pgAdmin solicita crear un usuario administrativo.
 
-https://www.youtube.com/watch?v=thMUhy8lhuw
+```bash
+alumne@dosoriocliente:~$ sudo /usr/pgadmin4/bin/setup-web.sh
+```
 
+Durante el proceso se solicita:
 
-https://neon.com/postgresql/postgresql-getting-started/load-postgresql-sample-database
+```text
+Email address:
+Password:
+Retype password:
+```
 
+Estos datos son propios de pgAdmin y se usan para acceder a la interfaz web.
 
-https://www.pgadmin.org/download/pgadmin-4-apt/
+> [!IMPORTANT]
+> Las credenciales de acceso a pgAdmin no se dejan escritas en el repositorio. Solo se documenta el proceso necesario para configurarlo.
 
+---
 
-https://www.digitalocean.com/community/tutorials/how-to-install-and-use-postgresql-on-ubuntu-20-04
+## 12. Acceso a pgAdmin desde navegador
 
+Una vez configurado pgAdmin, se accede desde el navegador.
 
-https://www.youtube.com/watch?v=DxQ_WKBukqY
-https://dbeaver.io/download/
+En el laboratorio se prueba el acceso a la interfaz web mediante:
+
+```text
+http://192.168.1.15/pgadmin4
+```
+
+También se puede usar un túnel SSH si se quiere acceder de forma más controlada.
+
+```bash
+alumne@dosoriocliente:~$ ssh -L 8080:localhost:80 isard@192.168.1.15
+```
+
+Y después abrir en el navegador:
+
+```text
+http://localhost:8080/pgadmin4
+```
+
+La primera captura muestra el acceso a pgAdmin.
+
+![Acceso a pgAdmin](<../img/Captura de pantalla 2025-11-11 151028.png>)
+
+Después se inicia sesión con el usuario creado durante la configuración inicial.
+
+![Inicio de sesión en pgAdmin](<../img/Captura de pantalla 2025-11-11 151854.png>)
+
+---
+
+## 13. Registro del servidor PostgreSQL en pgAdmin
+
+Una vez dentro de pgAdmin, se registra el servidor PostgreSQL.
+
+Desde la interfaz se crea un nuevo servidor.
+
+![Creación de servidor en pgAdmin](<../img/Captura de pantalla 2025-11-11 152158.png>)
+
+En el apartado de conexión se indican los datos principales.
+
+```text
+Host name/address: 192.168.1.15
+Port: 5432
+Maintenance database: postgres
+Username: postgres
+Password: CHANGE_ME_POSTGRES_PASSWORD
+```
+
+![Configuración de conexión en pgAdmin](<../img/Captura de pantalla 2025-11-11 152257.png>)
+
+Al probar la conexión aparece un problema de acceso.
+
+![Error de conexión en pgAdmin](<../img/Captura de pantalla 2025-11-11 152404.png>)
+
+El error indica que PostgreSQL está funcionando, pero no está permitiendo todavía el acceso desde el cliente. En este punto se revisa el archivo `pg_hba.conf`.
+
+La regla correcta para esta práctica es:
+
+```text
+host all all 192.168.1.16/32 scram-sha-256
+```
+
+Tras añadir o corregir la regla, se reinicia PostgreSQL.
+
+```bash
+isard@dosorio-server:~$ sudo systemctl restart postgresql
+```
+
+Después se vuelve a probar la conexión desde pgAdmin.
+
+![Conexión corregida en pgAdmin](<../img/Captura de pantalla 2025-11-11 153048.png>)
+
+A partir de aquí, el servidor queda registrado correctamente dentro de pgAdmin.
+
+![Servidor registrado](<../img/Captura de pantalla 2025-11-11 153104.png>)
+
+---
+
+## 14. Revisión de la base de datos desde pgAdmin
+
+Con el servidor ya conectado, se navega por la estructura de PostgreSQL desde pgAdmin.
+
+Se comprueba que la base de datos `dvdrental` está disponible.
+
+![Base de datos disponible en pgAdmin](<../img/Captura de pantalla 2025-11-11 153343.png>)
+
+Después se revisa la estructura de la base de datos.
+
+![Exploración de la base de datos](<../img/Captura de pantalla 2025-11-12 003331.png>)
+
+También se revisan tablas y objetos de la base de datos.
+
+![Tablas de dvdrental](<../img/Captura de pantalla 2025-11-12 003602.png>)
+
+Con esto se confirma que pgAdmin se conecta correctamente al servidor PostgreSQL y que la base de datos restaurada está accesible desde la interfaz gráfica.
+
+---
+
+## 15. Consultas y comprobaciones desde pgAdmin
+
+Una vez conectada la base de datos en pgAdmin, se realizan comprobaciones desde la interfaz.
+
+![Consulta desde pgAdmin](<../img/Captura de pantalla 2025-11-12 003756.png>)
+
+Se ejecuta una consulta sobre la base de datos.
+
+![Ejecución de consulta](<../img/Captura de pantalla 2025-11-12 003910.png>)
+
+Después se revisa el resultado obtenido.
+
+![Resultado de consulta](<../img/Captura de pantalla 2025-11-12 004117.png>)
+
+También se comprueba la navegación por los datos desde la interfaz.
+
+![Datos consultados en pgAdmin](<../img/Captura de pantalla 2025-11-12 004331.png>)
+
+Esta parte es útil porque permite validar que la conexión no solo funciona a nivel de login, sino que permite consultar datos reales de la base de datos.
+
+---
+
+## 16. Evidencias finales del procedimiento
+
+Las últimas capturas documentan la parte final de la comprobación en pgAdmin.
+
+![Revisión final en pgAdmin](<../img/Captura de pantalla 2025-11-12 004416.png>)
+
+![Comprobación adicional](<../img/Captura de pantalla 2025-11-12 004709.png>)
+
+![Estado final de la práctica](<../img/Captura de pantalla 2025-11-12 004751.png>)
+
+Con estas evidencias se deja constancia de que el servidor PostgreSQL quedó accesible desde el cliente, que pgAdmin pudo conectarse y que la base de datos restaurada se podía consultar correctamente.
+
+---
+
+## 17. Problemas revisados durante la práctica
+
+Durante la práctica se revisan varios puntos típicos cuando PostgreSQL no permite conexión remota.
+
+Los más importantes son:
+
+* El servicio PostgreSQL no está activo.
+* `listen_addresses` sigue configurado solo para conexiones locales.
+* El puerto 5432 no está escuchando en la IP del servidor.
+* Falta una regla correcta en `pg_hba.conf`.
+* La IP permitida en `pg_hba.conf` no corresponde al cliente real.
+* No se ha reiniciado PostgreSQL después de modificar la configuración.
+* La contraseña del usuario no es correcta.
+* pgAdmin intenta conectar al host equivocado.
+* El cliente no tiene conectividad con el servidor.
+
+> [!TIP]
+> Cuando falla la conexión desde pgAdmin, es recomendable probar primero con `psql` desde terminal. Si `psql` tampoco conecta, el problema suele estar en PostgreSQL, red o permisos. Si `psql` conecta pero pgAdmin no, normalmente el problema está en los datos introducidos en la conexión gráfica.
+
+---
+
+## 18. Comandos de comprobación utilizados
+
+Comprobar el estado del servicio:
+
+```bash
+sudo systemctl status postgresql
+```
+
+Reiniciar PostgreSQL:
+
+```bash
+sudo systemctl restart postgresql
+```
+
+Comprobar escucha en el puerto 5432:
+
+```bash
+sudo ss -tulnp | grep 5432
+```
+
+Conectarse desde el cliente:
+
+```bash
+psql -h 192.168.1.15 -U postgres
+```
+
+Listar bases de datos:
+
+```sql
+\l
+```
+
+Conectarse a `dvdrental`:
+
+```sql
+\c dvdrental
+```
+
+Listar tablas:
+
+```sql
+\dt
+```
+
+Consulta de prueba:
+
+```sql
+SELECT title, release_year
+FROM film
+LIMIT 5;
+```
+
+---
+
+## 19. Organización del repositorio
+
+El repositorio se ha reorganizado para separar la presentación corta de la documentación completa.
+
+```text
+postgresql-cliente-servidor-ubuntu/
+|-- README.md
+|-- .gitignore
+|-- .gitattributes
+|-- docs/
+|   |-- memoria.md
+|-- img/
+|   |-- imágenes de la práctica
+```
+
+La carpeta `img/` contiene las evidencias visuales utilizadas en esta memoria técnica.
+
+---
+
+## 20. Valor técnico de la práctica
+
+Esta práctica me ha servido para trabajar varios puntos importantes de administración de sistemas y bases de datos:
+
+* Instalación y gestión de PostgreSQL en Linux.
+* Configuración de servicios en Ubuntu Server.
+* Conexión cliente-servidor por red.
+* Edición de archivos de configuración reales.
+* Control de acceso mediante `pg_hba.conf`.
+* Uso de `psql` desde terminal.
+* Administración gráfica con pgAdmin 4.
+* Restauración y revisión de una base de datos de ejemplo.
+* Documentación técnica con comandos, salidas y capturas.
+
+Es una práctica sencilla, pero útil para afianzar la base de PostgreSQL en un entorno de red y entender mejor cómo se comporta un SGBD cuando se administra como servicio.
